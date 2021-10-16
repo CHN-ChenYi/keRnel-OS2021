@@ -3,14 +3,14 @@
     .section .text.entry
     .globl _start
 _start:
-    # ------------------
-    # - your code here -
-    # ------------------
+    # set up program stack
+    la sp, boot_stack_top
+    j start_kernel
 
     .section .bss.stack
     .globl boot_stack
 boot_stack:
-    .space XYZ # <-- change to your stack size
+    .space 1024 * 4  # 4K
 
     .globl boot_stack_top
 boot_stack_top:
