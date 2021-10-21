@@ -1,8 +1,14 @@
-#include "print.h"
+#include "clock.h"
 #include "defs.h"
-
-// Please do not modify
+#include "printk.h"
 
 void test() {
-    while (1);
+  for (;;) {
+    static unsigned long last_print_time = 0;
+    unsigned long time = get_cycles();
+    if ((time - last_print_time) > TIMECLOCK) {
+      printk("kernel is running!\n");
+      last_print_time = time;
+    }
+  }
 }

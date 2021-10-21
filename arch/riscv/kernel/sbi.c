@@ -4,7 +4,7 @@
 
 /**
  * @brief call sbi function and get the result
- * 
+ *
  * @param ext Extension ID
  * @param fid Function ID
  * @return struct sbiret {error, value}
