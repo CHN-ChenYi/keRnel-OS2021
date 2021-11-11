@@ -1,3 +1,5 @@
+.extern mm_init                          # mm.c
+.extern task_init                        # proc.cc
 .extern start_kernel                     # main.c
 .extern _traps                           # entry.S
 .extern unsigned long TIMECLOCK          # clock.c
@@ -40,6 +42,13 @@ _start:
 
     # set up program stack
     la      sp, boot_stack_top
+
+    # memory init
+    jal     mm_init
+
+    # task init
+    jal     task_init
+
     j       start_kernel
 
     .section .bss.stack

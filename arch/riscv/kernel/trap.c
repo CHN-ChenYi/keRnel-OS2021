@@ -1,6 +1,7 @@
 #include "clock.h"
 #include "defs.h"
 #include "printk.h"
+#include "proc.h"
 
 const unsigned long INTERRUPT_MASK = 1ll << 63;
 
@@ -13,6 +14,7 @@ void trap_handler(unsigned long scause, unsigned long sepc) {
     if (scause ^ INTERRUPT_MASK == 5) {  // Supervisor timer interrupt
       printk("[S] Supervisor Mode Timer Interrupt\n");
       clock_set_next_event();
+      do_timer();
     }
   }
 }
