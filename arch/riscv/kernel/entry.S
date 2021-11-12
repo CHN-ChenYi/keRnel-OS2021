@@ -52,14 +52,14 @@
 _traps:
     # save 31 registers and sepc to stack
     addi    sp, sp, -1 * CONTEXT_SIZE * REG_SIZE
-    SAVE_X_SP    x1, 1
-    .set    n, 3
+    SAVE_X_SP    x1, 0
+    .set    n, 2
     .rept   29
         SAVE_X_SP_N  %n
         .set    n, n + 1
     .endr
     addi    t0, sp, 1 * CONTEXT_SIZE * REG_SIZE  # original sp
-    SAVE_X_SP    t0, 2  # save sp
+    SAVE_X_SP    t0, 1  # save sp
     # save csrs
     # https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/arch/riscv/kernel/entry.S#n85
     csrr    t0, sepc
@@ -67,11 +67,11 @@ _traps:
     csrr    t2, stval
     csrr    t3, scause
     csrr    t4, sscratch
-    SAVE_X_SP    t0, 32
-    SAVE_X_SP    t1, 33
-    SAVE_X_SP    t2, 34
-    SAVE_X_SP    t3, 35
-    SAVE_X_SP    t4, 36
+    SAVE_X_SP    t0, 31
+    SAVE_X_SP    t1, 32
+    SAVE_X_SP    t2, 33
+    SAVE_X_SP    t3, 34
+    SAVE_X_SP    t4, 35
 
     # call trap_handler
     mv      a0, t3  # scause
@@ -79,23 +79,23 @@ _traps:
     jal     trap_handler
 
     # restore sepc and 32 registers (x2(sp) should be restore last) from stack
-    LOAD_X_SP    t0, 32
-    LOAD_X_SP    t1, 33
-    LOAD_X_SP    t2, 34
-    LOAD_X_SP    t3, 35
-    LOAD_X_SP    t4, 36
+    LOAD_X_SP    t0, 31
+    LOAD_X_SP    t1, 32
+    LOAD_X_SP    t2, 33
+    LOAD_X_SP    t3, 34
+    LOAD_X_SP    t4, 35
     csrw    sepc, t0
     csrw    sstatus, t1
     csrw    stval, t2
     csrw    scause, t3
     csrw    sscratch, t4
-    .set    n, 3
+    .set    n, 2
     .rept   29
         LOAD_X_SP_N %n
         .set    n, n + 1
     .endr
-    LOAD_X_SP    x1, 1
-    LOAD_X_SP    x2, 2  # load sp
+    LOAD_X_SP    x1, 0
+    LOAD_X_SP    x2, 1  # load sp
 
     sret
 

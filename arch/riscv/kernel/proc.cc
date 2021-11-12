@@ -43,7 +43,7 @@ void task_init() {
     task[i]->thread.ra =
         reinterpret_cast<decltype(task[i]->thread.ra)>(__dummy);
     task[i]->thread.sp =
-        reinterpret_cast<decltype(task[i]->thread.sp)>(task[i]) + PGSIZE - 1;
+        reinterpret_cast<decltype(task[i]->thread.sp)>(task[i]) + PGSIZE;
   }
   printk("...proc_init done!\n");
   idle = current = task[0];

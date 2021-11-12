@@ -23,7 +23,7 @@ uint64 kalloc() {
 void kfree(uint64 addr) {
     struct run *r;
 
-    // PGSIZE align 
+    // PGSIZE align
     addr = addr & ~(PGSIZE - 1);
 
     memset((void *)addr, 0x0, (uint64)PGSIZE);
