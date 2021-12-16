@@ -76,7 +76,7 @@ _traps:
     # call trap_handler
     mv      a0, t3  # scause
     mv      a1, t0  # sepc
-    jal     trap_handler
+    call    trap_handler
 
     # restore sepc and 32 registers (x2(sp) should be restore last) from stack
     LOAD_X_SP    t0, 31
@@ -84,6 +84,7 @@ _traps:
     LOAD_X_SP    t2, 33
     LOAD_X_SP    t3, 34
     LOAD_X_SP    t4, 35
+    add     t0, t0, a0  # return value from trap handler
     csrw    sepc, t0
     csrw    sstatus, t1
     csrw    stval, t2

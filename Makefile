@@ -11,7 +11,7 @@ ABI=lp64
 SCHEDULE ?= SJS
 
 INCLUDE = -I $(shell pwd)/include -I $(shell pwd)/arch/riscv/include
-CF = -Werror -O3 -march=$(ISA) -mabi=$(ABI) -mcmodel=medany -fno-builtin -ffunction-sections -fdata-sections -nostartfiles -nostdlib -nostdinc -static -lgcc -Wl,--nmagic -Wl,--gc-sections 
+CF = -Wall -Werror -O3 -march=$(ISA) -mabi=$(ABI) -mcmodel=medany -fno-builtin -ffunction-sections -fdata-sections -nostartfiles -nostdlib -nostdinc -static -lgcc -Wl,--nmagic -Wl,--gc-sections 
 CFLAG = ${CF} ${INCLUDE} -D${SCHEDULE}
 
 .PHONY:all run debug clean

@@ -29,4 +29,12 @@
 #define PGROUNDUP(addr) ((addr + PGSIZE - 1) & (~(PGSIZE - 1)))
 #define PGROUNDDOWN(addr) (addr & (~(PGSIZE - 1)))
 
+#define OPENSBI_SIZE (0x200000)
+
+#define VM_START (0xffffffe000000000)
+#define VM_END   (0xffffffff00000000)
+#define VM_SIZE  (VM_END - VM_START)
+
+extern const unsigned long PA2VA_OFFSET;
+
 #endif

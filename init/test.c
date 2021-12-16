@@ -7,7 +7,7 @@ void test() {
     static unsigned long last_print_time = 0;
     unsigned long time = get_cycles();
     if ((time - last_print_time) > TIMECLOCK || time < last_print_time) {
-      printk("kernel is running!\n");
+      log(LOG_LEVEL_INFO, "kernel is running!\n");
       last_print_time = time;
     }
   }

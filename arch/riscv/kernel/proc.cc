@@ -45,7 +45,7 @@ void task_init() {
     task[i]->thread.sp =
         reinterpret_cast<decltype(task[i]->thread.sp)>(task[i]) + PGSIZE;
   }
-  printk("...proc_init done!\n");
+  log(LOG_LEVEL_OK, "Process initialization done\n");
   idle = current = task[0];
 }
 
@@ -71,10 +71,10 @@ schedule_start:
       nxt = task[i];
     }
   }
-  if (min == -1) {
+  if (min == -1ull) {
     for (int i = 1; i < NR_TASKS; ++i) {
       task[i]->counter = rand() % MAX_COUNTER + 1;
-      printk("SET [PID = %lld COUNTER = %lld]\n", task[i]->pid,
+      log(LOG_LEVEL_INFO, "SET [PID = %lld COUNTER = %lld]\n", task[i]->pid,
              task[i]->counter);
     }
     goto schedule_start;
@@ -85,8 +85,8 @@ schedule_start:
 
 void switch_to(task_struct* next) {
   if (current == next) return;
-  printk("switch to [PID = %lld PRIORITY = %lld COUNTER = %lld]\n", next->pid,
-         next->priority, next->counter);
+  log(LOG_LEVEL_INFO, "switch to [PID = %lld PRIORITY = %lld COUNTER = %lld]\n",
+      next->pid, next->priority, next->counter);
   const auto prev = current;
   current = next;
   __switch_to(prev, next);
@@ -97,11 +97,14 @@ void dummy() {
   uint64 auto_inc_local_var = 0;
   int last_counter = -1;
   while (1) {
-    if (last_counter == -1 || current->counter != last_counter) {
+    if (last_counter == -1 ||
+        static_cast<int>(current->counter) != last_counter) {
       last_counter = current->counter;
       auto_inc_local_var = (auto_inc_local_var + 1) % MOD;
-      printk("[PID = %lld] is running. auto_inc_local_var = %lld\n",
-             current->pid, auto_inc_local_var);
+      printk(
+          "[PID = %lld] is running. auto_inc_local_var = %lld, current = "
+          "0x%llx\n",
+          current->pid, auto_inc_local_var, current);
     }
   }
 }

@@ -4,8 +4,11 @@
 
 extern void test();
 
+extern void _srodata();
+
 int start_kernel() {
-  printk("kernel is running!\n");
+  // test rodata section permission
+  // *(uint64 *)_srodata = 0;
 
   test();  // DO NOT DELETE !!!
 
