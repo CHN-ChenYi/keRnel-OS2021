@@ -6,6 +6,8 @@ extern "C" {
 #include "mm.h"
 #include "printk.h"
 #include "rand.h"
+#include "string.h"
+#include "vm.h"
 
 extern void __switch_to(struct task_struct* prev, struct task_struct* next);
 extern void __dummy();
@@ -18,6 +20,13 @@ const unsigned long kSPOffsetInThreadStruct =
     reinterpret_cast<unsigned long>(&(static_cast<thread_struct*>(0)->sp));
 const unsigned long kSOffsetInThreadStruct =
     reinterpret_cast<unsigned long>(&(static_cast<thread_struct*>(0)->s));
+const unsigned long kSepcOffsetInThreadStruct =
+    reinterpret_cast<unsigned long>(&(static_cast<thread_struct*>(0)->sepc));
+const unsigned long kSStatusOffsetInThreadStruct =
+    reinterpret_cast<unsigned long>(&(static_cast<thread_struct*>(0)->sstatus));
+const unsigned long kSScratchOffsetInThreadStruct =
+    reinterpret_cast<unsigned long>(
+        &(static_cast<thread_struct*>(0)->sscratch));
 const unsigned long kThreadOffsetInTaskStruct =
     reinterpret_cast<unsigned long>(&(static_cast<task_struct*>(0)->thread));
 const unsigned long kThreadRAOffsetInTaskStruct =
@@ -26,15 +35,29 @@ const unsigned long kThreadSPOffsetInTaskStruct =
     kThreadOffsetInTaskStruct + kSPOffsetInThreadStruct;
 const unsigned long kThreadSOffsetInTaskStruct =
     kThreadOffsetInTaskStruct + kSOffsetInThreadStruct;
+const unsigned long kThreadSepcOffsetInTaskStruct =
+    kThreadOffsetInTaskStruct + kSepcOffsetInThreadStruct;
+const unsigned long kThreadSStatusOffsetInTaskStruct =
+    kThreadOffsetInTaskStruct + kSStatusOffsetInThreadStruct;
+const unsigned long kThreadSScratchOffsetInTaskStruct =
+    kThreadOffsetInTaskStruct + kSScratchOffsetInThreadStruct;
+const unsigned long kPgdOffsetInTaskStruct =
+    reinterpret_cast<unsigned long>(&(static_cast<task_struct*>(0)->pgd));
 
 struct task_struct* idle;            // idle process
 struct task_struct* current;         // the current running process
 struct task_struct* task[NR_TASKS];  // all the processes
 
+extern void uapp_start(), uapp_end();
+
 void task_init() {
-  for (int i = 0; i < NR_TASKS; ++i) {
-    task[i] = (task_struct*)kalloc();
-    task[i]->thread_info = NULL;
+  idle = current = task[0] = reinterpret_cast<task_struct*>(kalloc());
+  task[0]->state = TASK_RUNNING;
+  task[0]->counter = 0;
+  task[0]->priority = PRIORITY_MIN;
+  task[0]->pid = 0;
+  for (int i = 1; i < NR_TASKS; ++i) {
+    task[i] = reinterpret_cast<task_struct*>(kalloc());
     task[i]->state = TASK_RUNNING;
     task[i]->counter = 0;
     task[i]->priority =
@@ -44,9 +67,30 @@ void task_init() {
         reinterpret_cast<decltype(task[i]->thread.ra)>(__dummy);
     task[i]->thread.sp =
         reinterpret_cast<decltype(task[i]->thread.sp)>(task[i]) + PGSIZE;
+    task[i]->thread.sepc = USER_START;
+    task[i]->thread.sstatus = csr_read(sstatus);
+    task[i]->thread.sstatus &= ~(1ull << 8);  // clear SPP
+    task[i]->thread.sstatus |= 1ull << 5;     // set SPIE
+    task[i]->thread.sstatus |= 1ull << 18;    // set SUM
+    task[i]->thread.sscratch = USER_END;
+    // set up the page table
+    pagetable_t pgtbl = reinterpret_cast<pagetable_t>(kalloc());
+    memcpy(pgtbl, swapper_pg_dir, PGSIZE);
+    create_mapping(pgtbl, USER_START,
+                   reinterpret_cast<uint64>(uapp_start) - PA2VA_OFFSET,
+                   reinterpret_cast<uint64>(uapp_end) -
+                       reinterpret_cast<uint64>(uapp_start),
+                   0b1111);  // uapp
+    create_mapping(pgtbl, USER_END - PGSIZE, kalloc() - PA2VA_OFFSET, PGSIZE,
+                   0b1011);  // user stack
+    const uint64 pgtbl_ppn =
+        (reinterpret_cast<uint64>(pgtbl) - PA2VA_OFFSET) >> 12;
+    uint64 new_satp = csr_read(satp);
+    new_satp = (new_satp >> 44) << 44;
+    new_satp |= pgtbl_ppn;
+    task[i]->pgd = new_satp;
   }
   log(LOG_LEVEL_OK, "Process initialization done\n");
-  idle = current = task[0];
 }
 
 void do_timer() {
@@ -75,7 +119,7 @@ schedule_start:
     for (int i = 1; i < NR_TASKS; ++i) {
       task[i]->counter = rand() % MAX_COUNTER + 1;
       log(LOG_LEVEL_INFO, "SET [PID = %lld COUNTER = %lld]\n", task[i]->pid,
-             task[i]->counter);
+          task[i]->counter);
     }
     goto schedule_start;
   }
@@ -90,23 +134,6 @@ void switch_to(task_struct* next) {
   const auto prev = current;
   current = next;
   __switch_to(prev, next);
-}
-
-void dummy() {
-  uint64 MOD = 1000000007;
-  uint64 auto_inc_local_var = 0;
-  int last_counter = -1;
-  while (1) {
-    if (last_counter == -1 ||
-        static_cast<int>(current->counter) != last_counter) {
-      last_counter = current->counter;
-      auto_inc_local_var = (auto_inc_local_var + 1) % MOD;
-      printk(
-          "[PID = %lld] is running. auto_inc_local_var = %lld, current = "
-          "0x%llx\n",
-          current->pid, auto_inc_local_var, current);
-    }
-  }
 }
 
 }  // extern "C"

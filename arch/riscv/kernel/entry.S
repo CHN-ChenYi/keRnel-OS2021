@@ -1,9 +1,13 @@
-.extern trap_handler                                # trap.c
-.extern dummy                                       # proc.cc
-.extern unsigned long kThreadOffsetInTaskStruct     # proc.cc
-.extern unsigned long kThreadRAOffsetInTaskStruct   # proc.cc
-.extern unsigned long kThreadSPOffsetInTaskStruct   # proc.cc
-.extern unsigned long kThreadSOffsetInTaskStruct    # proc.cc
+.extern trap_handler                                    # trap.c
+.extern current                                         # proc.cc
+.extern unsigned long kThreadOffsetInTaskStruct         # proc.cc
+.extern unsigned long kThreadRAOffsetInTaskStruct       # proc.cc
+.extern unsigned long kThreadSPOffsetInTaskStruct       # proc.cc
+.extern unsigned long kThreadSOffsetInTaskStruct        # proc.cc
+.extern unsigned long kThreadSepcOffsetInTaskStruct     # proc.cc
+.extern unsigned long kThreadSStatusOffsetInTaskStruct  # proc.cc
+.extern unsigned long kThreadSScratchOffsetInTaskStruct # proc.cc
+.extern unsigned long kPgdOffsetInTaskStruct            # proc.cc
 
 .altmacro
 .set    REG_SIZE, 8
@@ -46,10 +50,20 @@
     LOAD_S_T0    s\n, \n
 .endm
 
+.macro SWAP_SSCRATCH_AND_SP reg
+    csrr    \reg, sscratch
+    csrw    sscratch, sp
+    addi    sp, \reg, 0
+.endm
+
     .section .text.entry
     .align 2
     .globl _traps
 _traps:
+    csrr    t0, sscratch
+    beq     t0, x0, _traps_entry
+    SWAP_SSCRATCH_AND_SP t0
+_traps_entry:
     # save 31 registers and sepc to stack
     addi    sp, sp, -1 * CONTEXT_SIZE * REG_SIZE
     SAVE_X_SP    x1, 0
@@ -74,8 +88,9 @@ _traps:
     SAVE_X_SP    t4, 35
 
     # call trap_handler
-    mv      a0, t3  # scause
-    mv      a1, t0  # sepc
+    mv      a0, t3    # scause
+    mv      a1, t0    # sepc
+    addi    a2, sp, 0 # pt_regs
     call    trap_handler
 
     # restore sepc and 32 registers (x2(sp) should be restore last) from stack
@@ -98,6 +113,10 @@ _traps:
     LOAD_X_SP    x1, 0
     LOAD_X_SP    x2, 1  # load sp
 
+    csrr    t0, sscratch
+    beq     t0, x0, _traps_end
+    SWAP_SSCRATCH_AND_SP t0
+_traps_end:
     sret
 
     .globl __switch_to
@@ -106,6 +125,10 @@ __switch_to:
     LOAD_D  t2, kThreadRAOffsetInTaskStruct
     LOAD_D  t3, kThreadSPOffsetInTaskStruct
     LOAD_D  t4, kThreadSOffsetInTaskStruct
+    LOAD_D  t5, kThreadSepcOffsetInTaskStruct
+    LOAD_D  t6, kThreadSStatusOffsetInTaskStruct
+    LOAD_D  s7, kThreadSScratchOffsetInTaskStruct
+    LOAD_D  s8, kPgdOffsetInTaskStruct
 
     # save state to prev process
     add     t0, a0, t2
@@ -118,6 +141,18 @@ __switch_to:
         SAVE_S_T0_N %n
         .set    n, n + 1
     .endr
+    add     t0, a0, t5
+    csrr    s0, sepc
+    sd      s0, 0(t0)
+    add     t0, a0, t6
+    csrr    s0, sstatus
+    sd      s0, 0(t0)
+    add     t0, a0, s7
+    csrr    s0, sscratch
+    sd      s0, 0(t0)
+    add     t0, a0, s8
+    csrr    s0, satp
+    sd      s0, 0(t0)
 
     # restore state from next process
     add     t0, a1, t2
@@ -130,11 +165,23 @@ __switch_to:
         LOAD_S_T0_N %n
         .set    n, n + 1
     .endr
+    add     t0, a1, t5
+    ld      s0, 0(t0)
+    csrw    sepc, s0
+    add     t0, a1, t6
+    ld      s0, 0(t0)
+    csrw    sstatus, s0
+    add     t0, a1, s7
+    ld      s0, 0(t0)
+    csrw    sscratch, s0
+    add     t0, a1, s8
+    ld      s0, 0(t0)
+    csrw    satp, s0
+    sfence.vma zero, zero
 
     ret
 
     .global __dummy
 __dummy:
-    la      t0, dummy
-    csrw    sepc, t0
+    SWAP_SSCRATCH_AND_SP t0
     sret

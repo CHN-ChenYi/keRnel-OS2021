@@ -82,7 +82,7 @@ setup_trap:
     ecall  # sbi_set_timer
 
     # set sstatus[SIE] = 1
-    csrsi   sstatus, 0b10
+    # csrsi   sstatus, 0b10
 
     ret
 
